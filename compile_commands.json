@@ -1,0 +1,16 @@
+[
+{
+  "directory": "/doc/work/data/RIWO/onnx_yolo8_runtime",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++17", "-Iinclude", "-I", "/usr/include/opencv4", "-DNDEBUG", "-o", "build/.objs/run/linux/x86_64/release/src/main.cpp.o", "src/main.cpp"],
+  "file": "src/main.cpp"
+},
+{
+  "directory": "/doc/work/data/RIWO/onnx_yolo8_runtime",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++17", "-Iinclude", "-I", "/usr/include/opencv4", "-DNDEBUG", "-o", "build/.objs/run/linux/x86_64/release/src/inference.cpp.o", "src/inference.cpp"],
+  "file": "src/inference.cpp"
+},
+{
+  "directory": "/doc/work/data/RIWO/onnx_yolo8_runtime",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++17", "-Iinclude", "-I", "/usr/include/opencv4", "-DNDEBUG", "-o", "build/.objs/run/linux/x86_64/release/src/utils.cpp.o", "src/utils.cpp"],
+  "file": "src/utils.cpp"
+}]
