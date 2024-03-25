@@ -74,26 +74,26 @@ namespace utils {
 		int right = int(std::round(dw + 0.1f));
 		cv::copyMakeBorder(outImage, outImage, top, bottom, left, right, cv::BORDER_CONSTANT, color);
 	}
-}
 
-void utils::scaleCoords(cv::Rect &coords, cv::Mat &mask, const float maskThreshold, const cv::Size &imageShape, const cv::Size &imageOriginalShape) {
-    float gain = std::min((float)imageShape.height / (float)imageOriginalShape.height, (float)imageShape.width / (float)imageOriginalShape.width);
+	void scaleCoords(cv::Rect &coords, cv::Mat &mask, const float maskThreshold, const cv::Size &imageShape, const cv::Size &imageOriginalShape) {
+		float gain = std::min((float)imageShape.height / (float)imageOriginalShape.height, (float)imageShape.width / (float)imageOriginalShape.width);
 
-    int pad[2] = {(int)(((float)imageShape.width - (float)imageOriginalShape.width * gain) / 2.0f), (int)(((float)imageShape.height - (float)imageOriginalShape.height * gain) / 2.0f)};
+		int pad[2] = {(int)(((float)imageShape.width - (float)imageOriginalShape.width * gain) / 2.0f), (int)(((float)imageShape.height - (float)imageOriginalShape.height * gain) / 2.0f)};
 
-    coords.x = (int)std::round(((float)(coords.x - pad[0]) / gain));
-    coords.x = std::max(0, coords.x);
-    coords.y = (int)std::round(((float)(coords.y - pad[1]) / gain));
-    coords.y = std::max(0, coords.y);
+		coords.x = (int)std::round(((float)(coords.x - pad[0]) / gain));
+		coords.x = std::max(0, coords.x);
+		coords.y = (int)std::round(((float)(coords.y - pad[1]) / gain));
+		coords.y = std::max(0, coords.y);
 
-    coords.width = (int)std::round(((float)coords.width / gain));
-    coords.width = std::min(coords.width, imageOriginalShape.width - coords.x);
-    coords.height = (int)std::round(((float)coords.height / gain));
-    coords.height = std::min(coords.height, imageOriginalShape.height - coords.y);
-    mask = mask(cv::Rect(pad[0], pad[1], imageShape.width - 2 * pad[0], imageShape.height - 2 * pad[1]));
+		coords.width = (int)std::round(((float)coords.width / gain));
+		coords.width = std::min(coords.width, imageOriginalShape.width - coords.x);
+		coords.height = (int)std::round(((float)coords.height / gain));
+		coords.height = std::min(coords.height, imageOriginalShape.height - coords.y);
+		mask = mask(cv::Rect(pad[0], pad[1], imageShape.width - 2 * pad[0], imageShape.height - 2 * pad[1]));
 
-    cv::resize(mask, mask, imageOriginalShape, cv::INTER_LINEAR);
-    mask = mask(coords) > maskThreshold;
+		cv::resize(mask, mask, imageOriginalShape, cv::INTER_LINEAR);
+		mask = mask(coords) > maskThreshold;
+	}
 }
 
 
@@ -108,29 +108,14 @@ ONNXInf::ONNXInf(const std::string &modelPath, const bool &isGPU, float confThre
     std::vector<std::string> availableProviders = Ort::GetAvailableProviders();
     auto cudaAvailable = std::find(availableProviders.begin(), availableProviders.end(), "CUDAExecutionProvider");
     OrtCUDAProviderOptions cudaOption;
-
-    if (isGPU && (cudaAvailable == availableProviders.end())){
-        std::cout << "GPU is not supported by your ONNXRuntime build. Fallback to CPU." << std::endl;
-        std::cout << "Inference device: CPU" << std::endl;
+    if (isGPU && (cudaAvailable != availableProviders.end())){ 
+        sessionOptions.AppendExecutionProvider_CUDA(cudaOption); 
     }
-    else if (isGPU && (cudaAvailable != availableProviders.end())){
-        std::cout << "Inference device: GPU" << std::endl;
-        sessionOptions.AppendExecutionProvider_CUDA(cudaOption);
-    }
-    else {
-        std::cout << "Inference device: CPU" << std::endl;
-    }
-
     session = Ort::Session(env, modelPath.c_str(), sessionOptions);
 
     const size_t num_input_nodes = session.GetInputCount();   //==1
     const size_t num_output_nodes = session.GetOutputCount(); //==1,2
-    if (num_output_nodes > 1) {
-        this->hasMask = true;
-        std::cout << "Instance Segmentation" << std::endl;
-    }
-    else
-        std::cout << "Object Detection" << std::endl;
+    if (num_output_nodes > 1) { this->hasMask = true; }
 
     Ort::AllocatorWithDefaultOptions allocator;
     for (int i = 0; i < num_input_nodes; i++) {
@@ -182,7 +167,6 @@ cv::Mat ONNXInf::getMask(const cv::Mat &maskProposals, const cv::Mat &maskProtos
     cv::Mat matmul_res = (maskProposals * protos).t();
     cv::Mat masks = matmul_res.reshape(1, {(int)this->outputShapes[1][2], (int)this->outputShapes[1][3]});
     cv::Mat dest;
-
     // sigmoid
     cv::exp(-masks, dest);
     dest = 1.0 / (1.0 + dest);
@@ -226,17 +210,14 @@ std::vector<Detection> ONNXInf::postprocessing(const cv::Size &resizedImageShape
     std::vector<std::vector<float>> picked_proposals;
     cv::Mat mask_protos;
 
-    for (int i = 0; i < rows; i++)
-    {
+    for (int i = 0; i < rows; i++){
         std::vector<float> it(output0ptr + i * cols, output0ptr + (i + 1) * cols);
         float confidence;
         int classId;
         this->getBestClassInfo(it.begin(), confidence, classId, classNums);
 
-        if (confidence > this->confThreshold)
-        {
-            if (this->hasMask)
-            {
+        if (confidence > this->confThreshold){
+            if (this->hasMask){
                 std::vector<float> temp(it.begin() + 4 + classNums, it.end());
                 picked_proposals.push_back(temp);
             }
@@ -284,9 +265,16 @@ std::vector<Detection> ONNXInf::predict(cv::Mat &image) {
     float *blob = nullptr;
     std::vector<int64_t> inputTensorShape{1, 3, -1, -1};
     this->preprocessing(image, blob, inputTensorShape);
-    size_t inputTensorSize = this->vectorProduct(inputTensorShape);
+    
+	if (inputTensorShape.empty()) { return {}; }
+	size_t inputTensorSize = 1;
+	for (const auto &element : inputTensorShape) {
+		inputTensorSize *= element;
+	}
+
     std::vector<float> inputTensorValues(blob, blob + inputTensorSize);
     std::vector<Ort::Value> inputTensors;
+
     Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
     inputTensors.push_back(Ort::Value::CreateTensor<float>(memoryInfo, inputTensorValues.data(), inputTensorSize, inputTensorShape.data(), inputTensorShape.size()));
     std::vector<Ort::Value> outputTensors = this->session.Run(Ort::RunOptions{nullptr}, this->inputNames.data(), inputTensors.data(), 1, this->outputNames.data(), this->outputNames.size());
@@ -294,14 +282,4 @@ std::vector<Detection> ONNXInf::predict(cv::Mat &image) {
     std::vector<Detection> result = this->postprocessing(resizedShape, image.size(), outputTensors);
     delete[] blob;
     return result;
-}
-
-
-size_t ONNXInf::vectorProduct(const std::vector<int64_t> &vector){
-    if (vector.empty()) { return 0;} 
-    size_t product = 1;
-    for (const auto &element : vector) {
-        product *= element;
-    }
-    return product;
 }

@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <onnxruntime/onnxruntime_cxx_api.h>
 #include <utility>
+#include <spdlog/spdlog.h>
 
 struct Detection {
     int id{};
@@ -35,7 +36,6 @@ class ONNXInf {
         std::vector<Detection> postprocessing(const cv::Size &resizedImageShape, const cv::Size &originalImageShape, std::vector<Ort::Value> &outputTensors);
         static void getBestClassInfo(std::vector<float>::iterator it, float &bestConf, int &bestClassId, const int _classNums);
         cv::Mat getMask(const cv::Mat &maskProposals, const cv::Mat &maskProtos);
-        size_t vectorProduct(const std::vector<int64_t> &vector);
         bool isDynamicInputShape{};
 
         std::vector<const char *> inputNames;
